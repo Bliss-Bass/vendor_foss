@@ -79,13 +79,25 @@ OUTFD=$2
 ZIPFILE=$3
 ui_print() { echo -e "ui_print $1\nui_print" >& $OUTFD; }
 
+# Skip if running inside Magisk/KernelSU Manager (BOOTMODE=true)
+if [ "$BOOTMODE" = "true" ]; then
+    ui_print "- Magisk/KernelSU Manager detected."
+    ui_print "- The module will be installed systemlessly."
+    exit 0
+fi
+
 ui_print "Mounting system..."
 mount /system 2>/dev/null
 mount /system_root 2>/dev/null
 mount -o rw,remount /system 2>/dev/null || mount -o rw,remount /system_root 2>/dev/null
 
+SYS_PATH="/system"
+if [ -d "/system_root/system" ]; then
+    SYS_PATH="/system_root/system"
+fi
+
 # Safety check: Is the system partition actually writable?
-if ! touch /system/test_write 2>/dev/null && ! touch /system_root/test_write 2>/dev/null; then
+if ! touch "$SYS_PATH/test_write" 2>/dev/null; then
     ui_print "*****************************************"
     ui_print "! ERROR: System partition is Read-Only !"
     ui_print "! Modern Android (10+) uses dynamic or !"
@@ -96,21 +108,29 @@ if ! touch /system/test_write 2>/dev/null && ! touch /system_root/test_write 2>/
     ui_print "*****************************************"
     exit 1
 fi
-rm -f /system/test_write /system_root/test_write 2>/dev/null
+rm -f "$SYS_PATH/test_write" 2>/dev/null
 
-ui_print "Extracting FOSS apps..."
-unzip -o "$ZIPFILE" 'system/*' -d /
+ui_print "Extracting FOSS apps to $SYS_PATH..."
+mkdir -p /tmp/foss_extract
+unzip -oq "$ZIPFILE" 'system/*' -d /tmp/foss_extract/
+cp -rf /tmp/foss_extract/system/* "$SYS_PATH/"
+rm -rf /tmp/foss_extract
 
 ui_print "Setting permissions..."
-chmod -R 755 /system/priv-app /system/app /system/etc/permissions 2>/dev/null
-find /system/priv-app /system/app -type f -name "*.apk" -exec chmod 644 {} +
-find /system/priv-app /system/app -type f -name "*.so" -exec chmod 644 {} +
-chmod 644 /system/etc/permissions/*.xml 2>/dev/null
+chmod -R 755 "$SYS_PATH/priv-app" "$SYS_PATH/app" "$SYS_PATH/etc/permissions" 2>/dev/null
+find "$SYS_PATH/priv-app" "$SYS_PATH/app" -type f -name "*.apk" -exec chmod 644 {} + 2>/dev/null
+find "$SYS_PATH/priv-app" "$SYS_PATH/app" -type f -name "*.so" -exec chmod 644 {} + 2>/dev/null
+chmod 644 "$SYS_PATH/etc/permissions"/*.xml 2>/dev/null
 
 ui_print "Install complete."
 exit 0
 EOF
 chmod +x tmp_zip/META-INF/com/google/android/update-binary
+
+# Set proper permissions in the staging folder BEFORE zipping!
+# This is crucial for Magisk/KernelSU because Android requires 644 for system files.
+find tmp_zip/system -type d -exec chmod 755 {} +
+find tmp_zip/system -type f -exec chmod 644 {} +
 
 # Build the final zip
 (cd tmp_zip && zip -rq ../output/vendor_foss-$MAIN_ARCH.zip .)
