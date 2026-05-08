@@ -48,11 +48,11 @@ for meta in bin/*.meta; do
     fi
 done
 
-# 3. Build Magisk/KernelSU Module
-echo "  -> Packaging Magisk/KernelSU module..."
-mkdir -p tmp_magisk
-cp -r tmp_zip/system tmp_magisk/
-cat > tmp_magisk/module.prop <<EOF
+# 3. Build Unified Flashable Zip (Magisk/KernelSU + TWRP)
+echo "  -> Packaging Unified Magisk/Recovery Flashable zip..."
+
+# Create module.prop for Magisk/KernelSU
+cat > tmp_zip/module.prop <<EOF
 id=vendor_foss_${MAIN_ARCH//-/_}
 name=Vendor FOSS Apps ($MAIN_ARCH)
 version=1.0.0
@@ -61,18 +61,19 @@ author=vendor_foss
 description=Systemless injection of F-Droid, MicroG, and FOSS apps.
 EOF
 
-(cd tmp_magisk && zip -rq ../output/vendor_foss-magisk-$MAIN_ARCH.zip .)
+# Create META-INF structure
+mkdir -p tmp_zip/META-INF/com/google/android
 
-# 4. Build Recovery Flashable Zip
-echo "  -> Packaging Recovery Flashable zip..."
-mkdir -p tmp_recovery/META-INF/com/google/android
-cp -r tmp_zip/system tmp_recovery/
+# Create updater-script with #MAGISK tag for Magisk/KernelSU native install
+cat > tmp_zip/META-INF/com/google/android/updater-script <<'EOF'
+#MAGISK
+# Dummy updater-script
+# This file tells Magisk and KernelSU to natively install the zip as a module.
+# The real recovery script is inside update-binary.
+EOF
 
-# Dummy updater-script required by some recoveries
-echo "# Dummy updater-script" > tmp_recovery/META-INF/com/google/android/updater-script
-
-# Create update-binary execution script
-cat > tmp_recovery/META-INF/com/google/android/update-binary <<'EOF'
+# Create update-binary execution script for TWRP fallback
+cat > tmp_zip/META-INF/com/google/android/update-binary <<'EOF'
 #!/sbin/sh
 OUTFD=$2
 ZIPFILE=$3
@@ -90,7 +91,8 @@ if ! touch /system/test_write 2>/dev/null && ! touch /system_root/test_write 2>/
     ui_print "! Modern Android (10+) uses dynamic or !"
     ui_print "! EROFS partitions which cannot be     !"
     ui_print "! modified directly in recovery.       !"
-    ui_print "! Please use the Magisk module instead.!"
+    ui_print "! Please use Magisk/KernelSU Manager   !"
+    ui_print "! to install this zip as a module!     !"
     ui_print "*****************************************"
     exit 1
 fi
@@ -108,11 +110,12 @@ chmod 644 /system/etc/permissions/*.xml 2>/dev/null
 ui_print "Install complete."
 exit 0
 EOF
-chmod +x tmp_recovery/META-INF/com/google/android/update-binary
+chmod +x tmp_zip/META-INF/com/google/android/update-binary
 
-(cd tmp_recovery && zip -rq ../output/vendor_foss-recovery-$MAIN_ARCH.zip .)
+# Build the final zip
+(cd tmp_zip && zip -rq ../output/vendor_foss-$MAIN_ARCH.zip .)
 
 # Cleanup
 rm -rf tmp_zip tmp_magisk tmp_recovery
 
-echo "Success: Zips generated in output/ directory."
+echo "Success: Unified Zip generated in output/ directory."
