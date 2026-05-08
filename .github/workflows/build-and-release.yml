@@ -1,0 +1,47 @@
+name: Build and Release FOSS Modules
+
+on:
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
+  push:
+    tags:
+      - 'v*' # Triggers a release when you push a tag like v1.0.0
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # Ensures all arch builds complete even if one fails
+      matrix:
+        # GitHub Actions will run a separate job for each architecture concurrently
+        arch: [x86_64, arm64-v8a, x86, armeabi-v7a]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip zip xmlstarlet aapt
+
+      - name: Run Update and Build Scripts
+        run: |
+          bash ./update.sh ${{ matrix.arch }}
+
+      - name: Upload Flashable Zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: flashable-zips-${{ matrix.arch }}
+          path: output/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "**/vendor_foss-*.zip"
