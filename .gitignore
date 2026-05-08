@@ -6,3 +6,7 @@ wget-log*
 permissions/
 tmp/*
 =
+output/
+tmp_zip/
+tmp_magisk/
+tmp_recovery/

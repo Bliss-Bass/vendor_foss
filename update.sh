@@ -8,7 +8,7 @@ LT_BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check for required dependencies
-REQUIRED_CMDS="wget unzip xmlstarlet aapt grep sed"
+REQUIRED_CMDS="wget unzip zip xmlstarlet aapt grep sed"
 MISSING_CMDS=""
 for cmd in $REQUIRED_CMDS; do
     if ! command -v $cmd &> /dev/null; then
@@ -48,7 +48,7 @@ done
 
 if [ "$CLEAN" == "1" ]; then
     echo -e "${LT_BLUE}# Cleaning up build directories...${NC}"
-    rm -Rf bin tmp tmp_libs permissions apps.mk Android.mk
+    rm -Rf bin tmp tmp_libs permissions apps.mk Android.mk output
     echo -e "${GREEN}# Clean complete.${NC}"
     # If ONLY clean was passed and no arch was provided, exit here safely
     if [ -z "$PRESELECTED_ARCH" ] && [ "$#" -eq 1 ]; then
@@ -85,5 +85,6 @@ echo -e "${LT_BLUE}# Starting FOSS update for $PRESELECTED_ARCH...${NC}"
 bash scripts/download_apps.sh "$PRESELECTED_ARCH"
 bash scripts/generate_mk.sh
 bash scripts/generate_perms.sh
+bash scripts/build_zips.sh "$PRESELECTED_ARCH"
 
 echo -e "${GREEN}# DONE${NC}"
