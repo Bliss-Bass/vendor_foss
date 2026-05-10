@@ -12,6 +12,15 @@ PRODUCT_PACKAGES += \
 	IchnaeaNlpBackend \
 	NominatimGeocoderBackend
 
+ifeq ($(USE_MINIMAL_FOSS_APPS_WITH_MICROG),true)
+
+PRODUCT_PACKAGES += \
+	GmsCore \
+	GsfProxy \
+	FakeStore
+
+endif
+
 # Copy any Permissions files, overriding anything if needed
 $(foreach f,$(wildcard $(LOCAL_PATH)/permissions/*.xml),\
     $(eval PRODUCT_COPY_FILES += $(f):$(TARGET_COPY_OUT_SYSTEM)/etc/permissions/$(notdir $f)))
