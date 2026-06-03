@@ -5,4 +5,6 @@ lib/
 wget-log*
 permissions/
 tmp/*
-=
+FakeStore/FakeStore.apk
+GmsCore/GmsCore.apk
+GsfProxy/GsfProxy.apk
